@@ -1,7 +1,11 @@
 # pylint: disable=R0903,W0231
 from abc import ABC, abstractmethod
 import re
+
 import numpy as np
+from yargy import Parser
+
+from yargy_rules import MEETING_FORM_SENTENCE
 
 
 class BaseRegexRule(ABC):
@@ -50,17 +54,32 @@ class AddressRule(BaseRegexRule):
         )
 
 
+class BaseYargyRule(ABC):
+    @abstractmethod
+    def __init__(self):
+        self.parser = None
+    def __call__(self, text):
+        match = self.parser.find(text)
+        return None if match is None else match.fact.value
+
+
+class MeetingFormRule(BaseYargyRule):
+    def __init__(self):
+        self.parser = Parser(MEETING_FORM_SENTENCE)
+
+
 rules = {
     'Полное наименование': FullNameRule(),
     'Сокращенное наименование': ShortNameRule(),
     'Адрес': AddressRule(),
     'ИНН': INNRule(),
     'ОГРН': OGRNRule(),
+    'Форма собрания': MeetingFormRule(),
 }
 
 
 def apply_rules(events_df, keep_content=True):
     return events_df.assign(**{
-        entity_name: np.vectorize(rule)(events_df.content)
+        entity_name: np.vectorize(rule, otypes=[object])(events_df.content)
         for entity_name, rule in rules.items()
     }).drop(columns=[] if keep_content else ['content'])
