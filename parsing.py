@@ -10,7 +10,7 @@ from models import Company, Auditor, Event
 
 def parse_company_page(company_id):
     company_page = BeautifulSoup(
-        requests.get(Company.id_to_link(company_id)).content, 
+        requests.get(Company.id_to_link(company_id)).content,
         'html.parser'
     )
 
@@ -41,7 +41,7 @@ def parse_event_page(event_id):
 
     form_match = re.search(r'Форма проведения [^:]+: (.+)', content)
     form = None if form_match is None else form_match[1]
-    auditor_match = re.search(r'Утвердить аудитором Общества на \d+ год (.+)', content) 
+    auditor_match = re.search(r'Утвердить аудитором Общества на \d+ год (.+)', content)
     auditor_name = None if auditor_match is None else auditor_match[1]
     approved_board_match = re.search(
         (
@@ -64,8 +64,8 @@ def parse_event_page(event_id):
 
 
 def parse_search_results(search_results, limit: int = None, disable_tqdm: bool = True):
-    companies: typing.Dict[str, Company] = dict()
-    events: typing.Dict[str, Event] = dict()
+    companies: typing.Dict[str, Company] = {}
+    events: typing.Dict[str, Event] = {}
     event_rows = search_results.find_all('tr')[:-2]
     if limit is not None:
         event_rows = event_rows[:limit]

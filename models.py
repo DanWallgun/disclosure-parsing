@@ -1,4 +1,4 @@
-# pylint: disable=C0103
+# pylint: disable=C0103,R0902
 from dataclasses import dataclass, field
 from urllib.parse import parse_qs, urlparse
 
@@ -15,7 +15,7 @@ class Company:
     address: str
     inn: str
     ogrn: str
-    
+
     @staticmethod
     def link_to_id(link: str) -> str:
         return parse_qs(urlparse(link).query)['id'][0]
