@@ -3,3 +3,4 @@ numpy==1.22.4
 pandas==1.4.2
 requests==2.27.1
 tqdm==4.64.0
+yargy==0.15.0

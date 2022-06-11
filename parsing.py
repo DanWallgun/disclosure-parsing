@@ -1,11 +1,12 @@
 # pylint: disable=R0903,W0231
 from abc import ABC, abstractmethod
+import datetime
 import re
 
 import numpy as np
 from yargy import Parser
 
-from yargy_rules import MEETING_FORM_SENTENCE
+from yargy_rules import MEETING_FORM_SENTENCE, MEETING_DATE_SENTENCE
 
 
 class BaseRegexRule(ABC):
@@ -68,12 +69,21 @@ class MeetingFormRule(BaseYargyRule):
         self.parser = Parser(MEETING_FORM_SENTENCE)
 
 
+class MeetingDateRule(BaseYargyRule):
+    def __init__(self):
+        self.parser = Parser(MEETING_DATE_SENTENCE)
+    def __call__(self, text):
+        match = self.parser.find(text)
+        return None if match is None else datetime.date(**match.fact.as_json).isoformat()
+
+
 rules = {
     'Полное наименование': FullNameRule(),
     'Сокращенное наименование': ShortNameRule(),
     'Адрес': AddressRule(),
     'ИНН': INNRule(),
     'ОГРН': OGRNRule(),
+    'Дата собрания': MeetingDateRule(),
     'Форма собрания': MeetingFormRule(),
 }
 
