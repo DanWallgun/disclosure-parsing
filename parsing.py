@@ -6,7 +6,7 @@ import re
 import numpy as np
 from yargy import Parser
 
-from yargy_rules import MEETING_FORM_SENTENCE, MEETING_DATE_SENTENCE
+from yargy_rules import MEETING_FORM_SENTENCE, MEETING_DATE_SENTENCE, PAY_DIVIDENDS_SENTENCE, DONT_PAY_DIVIDENDS_SENTENCE
 
 
 class BaseRegexRule(ABC):
@@ -77,6 +77,21 @@ class MeetingDateRule(BaseYargyRule):
         return None if match is None else datetime.date(**match.fact.as_json).isoformat()
 
 
+class DividendsRule(BaseYargyRule):
+    def __init__(self):
+        self.parser_true = Parser(PAY_DIVIDENDS_SENTENCE)
+        self.parser_false = Parser(DONT_PAY_DIVIDENDS_SENTENCE)
+    def __call__(self, text):
+        is_true = self.parser_true.find(text) is not None
+        is_false = self.parser_false.find(text) is not None
+        if is_true:
+            return 'принято решение выплатить дивиденды'
+        elif is_false:
+            return 'принято решение не выплачивать дивиденды'
+        else:
+            return 'вопрос не поднимался'
+
+
 rules = {
     'Полное наименование': FullNameRule(),
     'Сокращенное наименование': ShortNameRule(),
@@ -85,6 +100,7 @@ rules = {
     'ОГРН': OGRNRule(),
     'Дата собрания': MeetingDateRule(),
     'Форма собрания': MeetingFormRule(),
+    'Дивиденды': DividendsRule(),
 }
 
 

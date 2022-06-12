@@ -175,3 +175,52 @@ MEETING_DATE_SENTENCE = or_(
         DATE,
     ),
 ).interpretation(MeetingDate)
+
+PAY_DIVIDENDS_SENTENCE = or_(
+    rule(
+        or_(
+            normalized('выплатить'),
+            normalized('объявить'),
+            normalized('начислить'),
+            normalized('произвести'),
+        ),
+        true().optional().repeatable(max=20),
+        normalized('дивиденды'),
+    ),
+    rule(
+        normalized('дивиденды'),
+        true().optional().repeatable(max=20),
+        or_(
+            normalized('выплатить'),
+            normalized('объявить'),
+            normalized('начислить'),
+            normalized('произвести'),
+        ),
+    ),
+)
+
+
+DONT_PAY_DIVIDENDS_SENTENCE = or_(
+    rule(
+        normalized('не'),
+        or_(
+            normalized('выплачивать'),
+            normalized('объявлять'),
+            normalized('начислять'),
+            normalized('производить'),
+        ),
+        true().optional().repeatable(max=20),
+        normalized('дивиденды'),
+    ),
+    rule(
+        normalized('дивиденды'),
+        true().optional().repeatable(max=20),
+        normalized('не'),
+        or_(
+            normalized('выплачивать'),
+            normalized('объявлять'),
+            normalized('начислять'),
+            normalized('производить'),
+        ),
+    ),
+)
