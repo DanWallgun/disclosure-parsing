@@ -4,9 +4,19 @@ import datetime
 import re
 
 import numpy as np
+from tqdm import tqdm
 from yargy import Parser
 
-from yargy_rules import MEETING_FORM_SENTENCE, MEETING_DATE_SENTENCE, PAY_DIVIDENDS_SENTENCE, DONT_PAY_DIVIDENDS_SENTENCE
+from yargy_rules import (
+    MEETING_FORM_SENTENCE,
+    MEETING_DATE_SENTENCE,
+    PAY_DIVIDENDS_SENTENCE,
+    DONT_PAY_DIVIDENDS_SENTENCE,
+    BOARD_PRESENTED,
+    BOARD_SENTENCE,
+)
+
+tqdm.pandas()
 
 
 class BaseRegexRule(ABC):
@@ -86,10 +96,21 @@ class DividendsRule(BaseYargyRule):
         is_false = self.parser_false.find(text) is not None
         if is_true:
             return 'принято решение выплатить дивиденды'
-        elif is_false:
+        if is_false:
             return 'принято решение не выплачивать дивиденды'
-        else:
-            return 'вопрос не поднимался'
+        return 'вопрос не поднимался'
+
+
+class BoardOfDirectorsRule(BaseYargyRule):
+    def __init__(self):
+        self.parser = Parser(BOARD_SENTENCE)
+        self.board_presented_parser = Parser(BOARD_PRESENTED)
+    def __call__(self, text):
+        match = self.board_presented_parser.find(text)
+        if not match:
+            return []
+        match = list(self.parser.findall(text))
+        return None if not match else match[-1].fact.names
 
 
 rules = {
@@ -101,11 +122,26 @@ rules = {
     'Дата собрания': MeetingDateRule(),
     'Форма собрания': MeetingFormRule(),
     'Дивиденды': DividendsRule(),
+    'Совет директоров': BoardOfDirectorsRule(),
 }
 
 
-def apply_rules(events_df, keep_content=True):
+def apply_rules_vectorized(events_df, keep_content=True):
     return events_df.assign(**{
         entity_name: np.vectorize(rule, otypes=[object])(events_df.content)
         for entity_name, rule in rules.items()
     }).drop(columns=[] if keep_content else ['content'])
+
+
+def apply_rules_tqdm(events_df, keep_content=True):
+    def apply_rules_to_row(row):
+        for entity_name, rule in rules.items():
+            row[entity_name] = rule(row.content)
+        if not keep_content:
+            del row['content']
+        return row
+    return events_df.progress_apply(apply_rules_to_row, axis=1)
+
+
+def apply_rules(events_df, keep_content=True, progress=False):
+    return (apply_rules_tqdm if progress else apply_rules_vectorized)(events_df, keep_content)

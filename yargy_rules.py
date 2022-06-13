@@ -1,12 +1,14 @@
 # pylint: disable=E1101
 from yargy import rule, or_, and_, not_
-from yargy.interpretation import fact
+from yargy.interpretation import fact, attribute
 from yargy.pipelines import morph_pipeline
 from yargy.predicates import (
     normalized,
+    is_capitalized,
     in_,
     true,
     eq,
+    length_eq,
     dictionary,
     gte,
     lte,
@@ -30,8 +32,9 @@ MEETING_FORM = or_(
         .interpretation(MeetingForm.value.const('заочное голосование')),
 )
 
-SEPARATOR = in_('.:-–;')
+SEPARATOR = in_('.,:-–;')
 EOL_PREDICATE = type_predicate('EOL')
+NOT_EOL = not_(EOL_PREDICATE)
 
 MEETING_FORM_SENTENCE = or_(
     rule(
@@ -43,7 +46,7 @@ MEETING_FORM_SENTENCE = or_(
             SEPARATOR,
         ).optional().repeatable(max=2),
         EOL_PREDICATE.optional(),
-        not_(EOL_PREDICATE).optional().repeatable(max=10),
+        NOT_EOL.optional().repeatable(max=10),
         MEETING_FORM,
     ),
     rule(
@@ -170,11 +173,12 @@ MEETING_DATE_SENTENCE = or_(
     ),
     rule(
         normalized('дата'),
-        not_(EOL_PREDICATE).optional().repeatable(max=10),
+        NOT_EOL.optional().repeatable(max=10),
         normalized('собрание'),
         DATE,
     ),
 ).interpretation(MeetingDate)
+
 
 PAY_DIVIDENDS_SENTENCE = or_(
     rule(
@@ -224,3 +228,73 @@ DONT_PAY_DIVIDENDS_SENTENCE = or_(
         ),
     ),
 )
+
+
+Board = fact(
+    'Board',
+    [attribute('names').repeatable()]
+)
+
+RU_CAPITALIZED = and_(
+    type_predicate('RU'),
+    is_capitalized(),
+)
+
+ABBR = and_(
+    length_eq(1),
+    is_capitalized(),
+)
+
+RU_NAME_SIMPLE = rule(
+    rule(RU_CAPITALIZED, rule('-', RU_CAPITALIZED).optional()).repeatable(min=2, max=4)
+)
+
+RU_NAME_WITH_NONCAPITALIZED = rule(
+    rule(RU_CAPITALIZED, type_predicate('RU').optional()).repeatable(min=1, max=3)
+)
+
+RU_SURN_NAME_PATR_ABBR = rule(
+    RU_CAPITALIZED, rule(ABBR, DOT), rule(ABBR, DOT),
+)
+
+def get_boardlist_rule(name_rule):
+    return rule(
+        morph_pipeline(['решение', 'решили', 'постановили']),
+        true().repeatable(max=30),
+
+        or_(
+            rule(
+                normalized('избрать'),
+                NOT_EOL.repeatable().optional(),
+                normalized('совет'),
+                NOT_EOL.repeatable().optional(),
+                normalized('директоров'),
+            ),
+            rule(
+                normalized('совет'),
+                NOT_EOL.repeatable().optional(),
+                normalized('директоров'),
+                NOT_EOL.repeatable().optional(),
+                normalized('избраны'),
+            )
+        ),
+        NOT_EOL.repeatable().optional(),
+        EOL_PREDICATE,
+
+        rule(
+            eq('(').optional(), INT.optional(), in_('.)-•').optional(),
+            morph_pipeline(['гражданина РФ']).optional(),
+            name_rule.interpretation(Board.names),
+            rule('(', not_(eq(')')).repeatable(), ')').optional(),
+            QUOTE.optional(), SEPARATOR.optional(),
+            EOL_PREDICATE.repeatable(max=2),
+        ).repeatable(max=20)
+    )
+
+BOARD_PRESENTED = morph_pipeline(['совет директоров'])
+
+BOARD_SENTENCE = or_(
+    get_boardlist_rule(RU_NAME_SIMPLE.interpretation(Board.names)),
+    # get_boardlist_rule(RU_NAME_WITH_NONCAPITALIZED.interpretation(Board.names)),
+    get_boardlist_rule(RU_SURN_NAME_PATR_ABBR.interpretation(Board.names)),
+).interpretation(Board)
